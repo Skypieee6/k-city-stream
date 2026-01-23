@@ -96,30 +96,13 @@ HTML_TEMPLATE = """
         .profile-tab-btn { flex: 1; text-align: center; padding: 10px; font-weight: bold; font-size: 13px; color: #888; border-bottom: 2px solid transparent; transition: all 0.2s; }
         .profile-tab-active { color: #f9a8d4; border-color: #f9a8d4; }
 
-        /* FIXED AD OVERLAY */
-        #ad-overlay { background: rgba(0,0,0,0.98); backdrop-filter: blur(20px); }
-        .ad-box { background: #1a0b1c; border: 1px solid #db2777; border-radius: 16px; padding: 24px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 0 40px rgba(219, 39, 119, 0.3); }
-        .ad-placeholder { background: linear-gradient(45deg, #382039, #1a0b1c); }
+        /* UNLOCK SCREEN STYLES */
+        #unlock-screen { background: #000; position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .unlock-btn { background: linear-gradient(45deg, #db2777, #ec4899); color: white; padding: 12px 30px; border-radius: 30px; font-weight: 900; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(219, 39, 119, 0.5); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body class="pb-32">
-
-    <div id="ad-overlay" class="fixed inset-0 z-[9999] hidden flex flex-col items-center justify-center">
-        <div class="ad-box">
-            <div class="text-pink-500 text-4xl mb-4 animate-bounce"><i class="fa fa-ticket-alt"></i></div>
-            <h2 class="text-xl font-black text-white mb-2 uppercase italic">Unlock Episode</h2>
-            <p class="text-xs text-pink-300/70 mb-6">Watch this short ad to continue.</p>
-            
-            <div class="w-full h-32 ad-placeholder rounded-xl border border-white/10 mb-6 flex items-center justify-center relative overflow-hidden group">
-                <i class="fa fa-play-circle text-4xl text-white/20"></i>
-                <span class="absolute bottom-2 right-2 text-[8px] font-bold tracking-widest bg-black/80 text-white px-2 py-1 rounded">SPONSORED</span>
-            </div>
-
-            <button id="ad-btn" disabled class="w-full py-3 rounded-full bg-zinc-800 text-zinc-500 font-bold text-xs cursor-not-allowed transition-all">
-                Wait <span id="ad-timer">5</span>s
-            </button>
-        </div>
-    </div>
 
     <div id="master-loader" class="fixed inset-0 flex flex-col items-center justify-center bg-[#1a0b1c] z-[9999] transition-opacity duration-500">
         <div class="spinner mb-4" style="width:50px; height:50px; border-width:4px;"></div>
@@ -158,10 +141,23 @@ HTML_TEMPLATE = """
 
     <div id="section-player" class="hidden fixed inset-0 bg-black z-[500] overflow-y-auto">
         <div class="relative w-full aspect-video bg-black sticky top-0 z-50">
-            <div id="video-loader" class="absolute inset-0 flex items-center justify-center z-10"><div class="spinner"></div></div>
-            <iframe id="v-frame" class="w-full h-full border-0 opacity-0 relative z-20" allowfullscreen></iframe>
-            <div onclick="closePlayer()" class="absolute top-4 left-4 bg-black/60 text-white p-2 w-8 h-8 flex items-center justify-center rounded-full cursor-pointer z-50"><i class="fa fa-chevron-left text-xs"></i></div>
-            <div class="absolute top-4 right-4 z-50">
+            
+            <div id="video-container" class="w-full h-full relative">
+                
+                <div id="unlock-screen">
+                    <div class="text-pink-500 text-4xl mb-2"><i class="fa fa-lock"></i></div>
+                    <h2 class="text-white font-bold text-sm mb-6 tracking-widest">EPISODE LOCKED</h2>
+                    <button onclick="unlockEpisode()" class="unlock-btn">
+                        <i class="fa fa-play mr-2"></i> TAP TO UNLOCK
+                    </button>
+                    <p class="text-[10px] text-zinc-500 mt-4">Support us to continue watching</p>
+                </div>
+
+                <iframe id="v-frame" class="w-full h-full border-0 hidden" allowfullscreen></iframe>
+            </div>
+
+            <div onclick="closePlayer()" class="absolute top-4 left-4 bg-black/60 text-white p-2 w-8 h-8 flex items-center justify-center rounded-full cursor-pointer z-[60]"><i class="fa fa-chevron-left text-xs"></i></div>
+            <div class="absolute top-4 right-4 z-[60]">
                 <select onchange="switchServer(this.value)" class="bg-black/80 text-pink-300 text-[9px] border border-pink-500/30 rounded px-2 py-1 font-bold outline-none cursor-pointer hover:bg-black">
                     <option value="srv1">Server 1 (Fast)</option>
                     <option value="srv2">Server 2 (Backup)</option>
@@ -215,9 +211,9 @@ HTML_TEMPLATE = """
         let isLoadingMore=false, currentSeason=1, currentEpisode=1, activeServer='srv1';
         let watchedAds = new Set(); 
 
-        // --- REGISTER MONETAG SERVICE WORKER ---
+        // --- MONETAG REGISTRATION ---
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').then(function(r) { console.log('Monetag SW Ready'); }).catch(function(e) { console.log('SW Fail', e); });
+            navigator.serviceWorker.register('/sw.js');
         }
 
         async function init() {
@@ -261,7 +257,16 @@ HTML_TEMPLATE = """
             document.getElementById('section-player').classList.remove('hidden');
             currentTvId = item.id; 
             await fetchSeasons(item.id); 
-            tryPlayEp(1, 1, null);
+            // Reset to Ep 1 but DON'T play yet. Show lock screen.
+            currentSeason=1; currentEpisode=1;
+            renderEpisodes(1, 16); // Placeholder count, updated by fetch
+            
+            // Check if we already unlocked this specific show session
+            if(watchedAds.has(currentTvId)) {
+                showVideoDirectly();
+            } else {
+                showLockScreen();
+            }
         }
 
         async function fetchSeasons(id) {
@@ -274,56 +279,65 @@ HTML_TEMPLATE = """
             } catch(e) {}
         }
         function changeSeason(n, c, btn) { Array.from(document.getElementById('season-selector').children).forEach(b => { b.classList.remove('bg-pink-600','text-white'); b.classList.add('text-zinc-400'); }); btn.classList.remove('text-zinc-400'); btn.classList.add('bg-pink-600', 'text-white'); renderEpisodes(n, c); }
-        function renderEpisodes(s, count) { let h=''; for(let i=1; i<=count; i++) h+=`<div onclick="tryPlayEp(${s},${i},this)" class="ep-btn hover:bg-pink-500/20">${i}</div>`; document.getElementById('episode-list').innerHTML=h; }
+        function renderEpisodes(s, count) { let h=''; for(let i=1; i<=count; i++) h+=`<div onclick="switchEpisode(${s},${i},this)" class="ep-btn hover:bg-pink-500/20">${i}</div>`; document.getElementById('episode-list').innerHTML=h; }
 
-        function tryPlayEp(s, e, btn) {
-            currentSeason = s; currentEpisode = e;
-            const epKey = `${currentTvId}_${s}_${e}`;
-            if(watchedAds.has(epKey)) { playVideoFinal(btn); } else { triggerAd(epKey, btn); }
+        // --- NEW LOGIC: LOCK SCREEN & UNLOCK ---
+
+        function showLockScreen() {
+            document.getElementById('unlock-screen').classList.remove('hidden');
+            document.getElementById('unlock-screen').classList.add('flex');
+            document.getElementById('v-frame').classList.add('hidden');
+            document.getElementById('v-frame').src = ""; // Stop video
         }
 
-        function triggerAd(epKey, btn) {
-            const overlay = document.getElementById('ad-overlay');
-            const btnAd = document.getElementById('ad-btn');
-            const timerSpan = document.getElementById('ad-timer');
-            let timeLeft = 5; 
-            overlay.classList.remove('hidden');
-            btnAd.disabled = true;
-            btnAd.classList.add('cursor-not-allowed', 'bg-zinc-800', 'text-zinc-500');
-            btnAd.classList.remove('bg-pink-600', 'text-white', 'hover:scale-105');
-            btnAd.innerHTML = `Wait <span id="ad-timer">${timeLeft}</span>s`;
-
-            const adInterval = setInterval(() => {
-                timeLeft--;
-                if(document.getElementById('ad-timer')) document.getElementById('ad-timer').innerText = timeLeft;
-                if(timeLeft <= 0) {
-                    clearInterval(adInterval);
-                    btnAd.disabled = false;
-                    btnAd.innerHTML = "Skip Ad & Play Episode";
-                    btnAd.classList.remove('cursor-not-allowed', 'bg-zinc-800', 'text-zinc-500');
-                    btnAd.classList.add('bg-pink-600', 'text-white', 'hover:scale-105');
-                    btnAd.onclick = () => { overlay.classList.add('hidden'); watchedAds.add(epKey); playVideoFinal(btn); };
-                }
-            }, 1000);
-        }
-
-        function playVideoFinal(btn) {
-            document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('active'));
-            if(btn) btn.classList.add('active');
-            else { const buttons = document.querySelectorAll('.ep-btn'); if(buttons.length >= currentEpisode) buttons[currentEpisode-1]?.classList.add('active'); }
+        function showVideoDirectly() {
+            document.getElementById('unlock-screen').classList.add('hidden');
+            document.getElementById('unlock-screen').classList.remove('flex');
+            document.getElementById('v-frame').classList.remove('hidden');
             refreshVideoSource();
         }
 
+        function unlockEpisode() {
+            const btn = document.querySelector('.unlock-btn');
+            btn.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> UNLOCKING...';
+            
+            // 1. This CLICK triggers Monetag (Pop-under) naturally
+            // 2. We wait 3 seconds to make it feel like a process
+            setTimeout(() => {
+                watchedAds.add(currentTvId); // Unlock this show for this session
+                btn.innerHTML = 'UNLOCKED!';
+                setTimeout(() => {
+                    showVideoDirectly();
+                    btn.innerHTML = '<i class="fa fa-play mr-2"></i> TAP TO UNLOCK'; // Reset for next time
+                }, 500);
+            }, 3000);
+        }
+
+        function switchEpisode(s, e, btn) {
+            currentSeason = s; currentEpisode = e;
+            document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+            
+            // If unlocked, play. If not, show lock.
+            if(watchedAds.has(currentTvId)) {
+                refreshVideoSource();
+            } else {
+                showLockScreen();
+            }
+        }
+
         function switchServer(srv) { activeServer=srv; refreshVideoSource(); }
+        
         function refreshVideoSource() {
-            const f=document.getElementById('v-frame'), l=document.getElementById('video-loader');
-            l.classList.remove('hidden'); f.classList.add('opacity-0'); f.src="";
+            const f=document.getElementById('v-frame');
+            // DEFAULT TO SERVER 3 (Most reliable for embeds)
+            // Use standard clean URLs
             let url = "";
             if(activeServer==='srv1') url=`https://vidsrc.xyz/embed/tv/${currentTvId}/${currentSeason}/${currentEpisode}`;
             else if(activeServer==='srv2') url=`https://vidsrc.to/embed/tv/${currentTvId}/${currentSeason}/${currentEpisode}`;
             else if(activeServer==='srv3') url=`https://www.2embed.cc/embedtv/${currentTvId}&s=${currentSeason}&e=${currentEpisode}`;
-            setTimeout(() => { f.src=url; }, 100);
-            f.onload = () => { l.classList.add('hidden'); f.classList.remove('opacity-0'); };
+            
+            f.src = url;
         }
 
         function closePlayer() { document.getElementById('section-player').classList.add('hidden'); document.getElementById('v-frame').src=""; }
@@ -345,7 +359,7 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# --- MONETAG SW ROUTE ---
+# --- MONETAG SW ROUTE (UNCHANGED) ---
 @app.route('/sw.js')
 def service_worker():
     js_content = """
