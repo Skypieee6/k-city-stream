@@ -82,6 +82,7 @@ HTML_TEMPLATE = """
     
     <meta name="monetag" content="k4l3j4k3l2" />
 
+    <script src="https://quge5.com/88/tag.min.js" data-zone="204745" async data-cfasync="false"></script>
     <title>K-City | K-Drama Streaming</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -268,7 +269,6 @@ HTML_TEMPLATE = """
             document.getElementById('play-year').innerText = item.year;
             
             // SET BLURRED BACKGROUND
-            // IMPORTANT: 'item.poster' is a URL string, so we must wrap it in `url(...)`
             document.getElementById('unlock-screen').style.backgroundImage = `url('${item.poster}')`;
             
             document.getElementById('section-player').classList.remove('hidden');
@@ -314,7 +314,6 @@ HTML_TEMPLATE = """
 
         function unlockEpisode() {
             const btn = document.querySelector('.unlock-btn');
-            const originalText = btn.innerHTML;
             
             // 1. Loading State
             btn.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i> AD LOADING...';
@@ -328,7 +327,6 @@ HTML_TEMPLATE = """
                 // 3. Reveal Video
                 setTimeout(() => {
                     showVideoDirectly();
-                    // We DO NOT reset the button text, so it never flickers back
                 }, 1000);
             }, 2500);
         }
@@ -375,13 +373,14 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# --- MONETAG SW ROUTE (UNCHANGED) ---
+# --- MONETAG SW ROUTE ---
+# I UPDATED YOUR ZONE ID HERE TOO TO MATCH YOUR NEW SCRIPT
 @app.route('/sw.js')
 def service_worker():
     js_content = """
 self.options = {
     "domain": "5gvci.com",
-    "zoneId": 10506993
+    "zoneId": 204745
 }
 self.lary = ""
 importScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw')
