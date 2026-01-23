@@ -1,6 +1,6 @@
 import threading, time, requests, json, os
 from concurrent.futures import ThreadPoolExecutor
-from flask import Flask, render_template_string, jsonify
+from flask import Flask, render_template_string, jsonify, Response
 
 app = Flask(__name__)
 
@@ -80,6 +80,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#1a0b1c">
+    <meta name="monetag" content="k4l3j4k3l2" /> 
     <title>K-City | K-Drama Streaming</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -376,6 +377,19 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
+
+# --- MONETAG SERVICE WORKER ROUTE ---
+@app.route('/sw.js')
+def service_worker():
+    js_content = """
+self.options = {
+    "domain": "5gvci.com",
+    "zoneId": 10506993
+}
+self.lary = ""
+importScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw')
+"""
+    return Response(js_content, mimetype='application/javascript')
 
 @app.route('/api/data')
 def get_data():
