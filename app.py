@@ -9,7 +9,7 @@ TMDB_API_KEY = "4cc3094d9a8a8db22ee80b5a4be6dcf9"
 CACHE_FILE = "kdrama_cache.json" 
 data_lock = threading.Lock()
 
-# --- BACKEND (THE K-DRAMA BRAIN) ---
+# --- BACKEND ---
 def fetch_url(url):
     try:
         r = requests.get(url, timeout=4)
@@ -42,7 +42,6 @@ def process_items(items, batch, seen):
     for item in items:
         if item['id'] in seen or not item.get('poster_path'): continue
         if item.get('original_language') != 'ko': continue 
-
         g_ids = item.get('genre_ids', [])
         categories = ["all"]
         if 10749 in g_ids: categories.append("romance")
@@ -80,7 +79,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#1a0b1c">
-    <meta name="monetag" content="k4l3j4k3l2" /> 
+    <meta name="monetag" content="k4l3j4k3l2" />
     <title>K-City | K-Drama Streaming</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -88,20 +87,19 @@ HTML_TEMPLATE = """
         * { -webkit-tap-highlight-color: transparent; }
         body { background: #1a0b1c; color: #fce7f3; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif; overflow-x: hidden; user-select: none; }
         ::-webkit-scrollbar { display: none; }
-        
         .nav-active { color: #f9a8d4; border-bottom: 2px solid #f9a8d4; }
         .spinner { border: 3px solid rgba(255, 255, 255, 0.1); border-left-color: #f9a8d4; border-radius: 50%; width: 30px; height: 30px; animation: spin 0.8s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         .ep-btn { background: #382039; color: #fbcfe8; border: 1px solid #502e52; min-width: 45px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; }
         .ep-btn.active { background: #f9a8d4; color: #1a0b1c; border-color: #f9a8d4; }
-        
         .profile-tab-btn { flex: 1; text-align: center; padding: 10px; font-weight: bold; font-size: 13px; color: #888; border-bottom: 2px solid transparent; transition: all 0.2s; }
         .profile-tab-active { color: #f9a8d4; border-color: #f9a8d4; }
 
-        /* AD OVERLAY STYLES */
+        /* FIXED AD OVERLAY */
         #ad-overlay { background: rgba(0,0,0,0.98); backdrop-filter: blur(20px); }
         .ad-box { background: #1a0b1c; border: 1px solid #db2777; border-radius: 16px; padding: 24px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 0 40px rgba(219, 39, 119, 0.3); }
+        .ad-placeholder { background: linear-gradient(45deg, #382039, #1a0b1c); }
     </style>
 </head>
 <body class="pb-32">
@@ -112,13 +110,13 @@ HTML_TEMPLATE = """
             <h2 class="text-xl font-black text-white mb-2 uppercase italic">Unlock Episode</h2>
             <p class="text-xs text-pink-300/70 mb-6">Watch this short ad to continue.</p>
             
-            <div class="w-full h-32 bg-black rounded-xl border border-white/10 mb-6 flex items-center justify-center relative overflow-hidden group">
-                <img src="https://media.giphy.com/media/l0HlO48cWp348y3Is/giphy.gif" class="absolute inset-0 w-full h-full object-cover opacity-50">
-                <span class="relative z-10 text-[10px] font-bold tracking-widest bg-black/80 px-2 py-1 rounded">SPONSORED</span>
+            <div class="w-full h-32 ad-placeholder rounded-xl border border-white/10 mb-6 flex items-center justify-center relative overflow-hidden group">
+                <i class="fa fa-play-circle text-4xl text-white/20"></i>
+                <span class="absolute bottom-2 right-2 text-[8px] font-bold tracking-widest bg-black/80 text-white px-2 py-1 rounded">SPONSORED</span>
             </div>
 
             <button id="ad-btn" disabled class="w-full py-3 rounded-full bg-zinc-800 text-zinc-500 font-bold text-xs cursor-not-allowed transition-all">
-                Wait <span id="ad-timer">10</span>s
+                Wait <span id="ad-timer">5</span>s
             </button>
         </div>
     </div>
@@ -152,23 +150,17 @@ HTML_TEMPLATE = """
         <div id="scroll-loader" class="py-10 flex flex-col items-center justify-center opacity-0 transition-opacity">
             <div class="spinner"></div>
         </div>
-        
         <footer class="mt-8 p-6 border-t border-white/5 text-center opacity-60">
             <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" class="h-4 mx-auto mb-3" alt="TMDB Logo">
-            <p class="text-[8px] text-zinc-500 max-w-[200px] mx-auto leading-relaxed">
-                This product uses the TMDB API but is not endorsed or certified by TMDB.
-            </p>
+            <p class="text-[8px] text-zinc-500 max-w-[200px] mx-auto leading-relaxed">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
         </footer>
     </div>
 
     <div id="section-player" class="hidden fixed inset-0 bg-black z-[500] overflow-y-auto">
         <div class="relative w-full aspect-video bg-black sticky top-0 z-50">
             <div id="video-loader" class="absolute inset-0 flex items-center justify-center z-10"><div class="spinner"></div></div>
-            
             <iframe id="v-frame" class="w-full h-full border-0 opacity-0 relative z-20" allowfullscreen></iframe>
-            
             <div onclick="closePlayer()" class="absolute top-4 left-4 bg-black/60 text-white p-2 w-8 h-8 flex items-center justify-center rounded-full cursor-pointer z-50"><i class="fa fa-chevron-left text-xs"></i></div>
-            
             <div class="absolute top-4 right-4 z-50">
                 <select onchange="switchServer(this.value)" class="bg-black/80 text-pink-300 text-[9px] border border-pink-500/30 rounded px-2 py-1 font-bold outline-none cursor-pointer hover:bg-black">
                     <option value="srv1">Server 1 (Fast)</option>
@@ -185,9 +177,7 @@ HTML_TEMPLATE = """
                 <span id="play-rating" class="border border-pink-500/30 px-2 py-0.5 rounded"></span>
                 <span id="play-year" class="text-zinc-400"></span>
             </div>
-            
             <p id="play-intro" class="text-xs text-zinc-400 leading-relaxed mb-6 line-clamp-3" onclick="this.classList.toggle('line-clamp-3')"></p>
-            
             <div id="ep-container">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="text-xs font-black text-pink-500 uppercase tracking-widest">Episodes</h3>
@@ -195,10 +185,7 @@ HTML_TEMPLATE = """
                 </div>
                 <div id="episode-list" class="grid grid-cols-5 gap-2 max-h-60 overflow-y-auto"></div>
             </div>
-            
-            <button onclick="saveToLib()" class="mt-8 w-full py-3 bg-[#382039] text-pink-300 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-2">
-                <i class="fa fa-bookmark"></i> Add to Saved
-            </button>
+            <button onclick="saveToLib()" class="mt-8 w-full py-3 bg-[#382039] text-pink-300 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-2"><i class="fa fa-bookmark"></i> Add to Saved</button>
         </div>
     </div>
 
@@ -217,14 +204,8 @@ HTML_TEMPLATE = """
     </div>
 
     <nav class="fixed bottom-0 w-full tab-bar flex justify-around p-3 z-[100] pb-6 bg-[#1a0b1c]">
-        <div onclick="navigateTo('home')" id="nav-home" class="text-center text-pink-500 cursor-pointer">
-            <i class="fa fa-compass block text-xl mb-1"></i>
-            <span class="text-[9px] font-bold">Discover</span>
-        </div>
-        <div onclick="navigateTo('profile')" id="nav-profile" class="text-center text-zinc-600 cursor-pointer">
-            <i class="fa fa-user block text-xl mb-1"></i>
-            <span class="text-[9px] font-bold">Profile</span>
-        </div>
+        <div onclick="navigateTo('home')" id="nav-home" class="text-center text-pink-500 cursor-pointer"><i class="fa fa-compass block text-xl mb-1"></i><span class="text-[9px] font-bold">Discover</span></div>
+        <div onclick="navigateTo('profile')" id="nav-profile" class="text-center text-zinc-600 cursor-pointer"><i class="fa fa-user block text-xl mb-1"></i><span class="text-[9px] font-bold">Profile</span></div>
     </nav>
 
     <script>
@@ -232,9 +213,12 @@ HTML_TEMPLATE = """
         let allData=[], currentFilteredData=[], displayedCount=0;
         let currentTab='all', currentItem=null, currentTvId=null;
         let isLoadingMore=false, currentSeason=1, currentEpisode=1, activeServer='srv1';
-        
-        // --- AD TRACKING ---
         let watchedAds = new Set(); 
+
+        // --- REGISTER MONETAG SERVICE WORKER ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then(function(r) { console.log('Monetag SW Ready'); }).catch(function(e) { console.log('SW Fail', e); });
+        }
 
         async function init() {
             try {
@@ -248,7 +232,6 @@ HTML_TEMPLATE = """
         function updateTabUI(cat) { document.querySelectorAll('#cat-bar span').forEach(s => { s.classList.remove('nav-active', 'text-pink-300'); s.classList.add('text-pink-300/50'); if(s.dataset.cat === cat) { s.classList.add('nav-active', 'text-pink-300'); s.classList.remove('text-pink-300/50'); } }); }
         function setTab(cat) { currentTab=cat; updateTabUI(cat); applyFilters(); }
         function applyFilters() { if(currentTab==='all') currentFilteredData=allData; else currentFilteredData=allData.filter(i=>i.categories.includes(currentTab)); displayedCount=0; document.getElementById('grid-home').innerHTML=""; loadMoreItems(); }
-        
         function loadMoreItems() {
             if(isLoadingMore) return; isLoadingMore=true;
             const loader=document.getElementById('scroll-loader');
@@ -278,7 +261,6 @@ HTML_TEMPLATE = """
             document.getElementById('section-player').classList.remove('hidden');
             currentTvId = item.id; 
             await fetchSeasons(item.id); 
-            // Trigger Ad Logic on Episode 1 by default
             tryPlayEp(1, 1, null);
         }
 
@@ -294,26 +276,17 @@ HTML_TEMPLATE = """
         function changeSeason(n, c, btn) { Array.from(document.getElementById('season-selector').children).forEach(b => { b.classList.remove('bg-pink-600','text-white'); b.classList.add('text-zinc-400'); }); btn.classList.remove('text-zinc-400'); btn.classList.add('bg-pink-600', 'text-white'); renderEpisodes(n, c); }
         function renderEpisodes(s, count) { let h=''; for(let i=1; i<=count; i++) h+=`<div onclick="tryPlayEp(${s},${i},this)" class="ep-btn hover:bg-pink-500/20">${i}</div>`; document.getElementById('episode-list').innerHTML=h; }
 
-        // --- AD LOGIC: PRE-ROLL ---
         function tryPlayEp(s, e, btn) {
             currentSeason = s; currentEpisode = e;
             const epKey = `${currentTvId}_${s}_${e}`;
-            
-            if(watchedAds.has(epKey)) {
-                // Ad already watched, play video
-                playVideoFinal(btn);
-            } else {
-                // Show Ad First
-                triggerAd(epKey, btn);
-            }
+            if(watchedAds.has(epKey)) { playVideoFinal(btn); } else { triggerAd(epKey, btn); }
         }
 
         function triggerAd(epKey, btn) {
             const overlay = document.getElementById('ad-overlay');
             const btnAd = document.getElementById('ad-btn');
             const timerSpan = document.getElementById('ad-timer');
-            let timeLeft = 10; // 10 Second Mandatory Wait
-
+            let timeLeft = 5; 
             overlay.classList.remove('hidden');
             btnAd.disabled = true;
             btnAd.classList.add('cursor-not-allowed', 'bg-zinc-800', 'text-zinc-500');
@@ -329,12 +302,7 @@ HTML_TEMPLATE = """
                     btnAd.innerHTML = "Skip Ad & Play Episode";
                     btnAd.classList.remove('cursor-not-allowed', 'bg-zinc-800', 'text-zinc-500');
                     btnAd.classList.add('bg-pink-600', 'text-white', 'hover:scale-105');
-                    
-                    btnAd.onclick = () => {
-                        overlay.classList.add('hidden');
-                        watchedAds.add(epKey); // Unlock this episode
-                        playVideoFinal(btn);
-                    };
+                    btnAd.onclick = () => { overlay.classList.add('hidden'); watchedAds.add(epKey); playVideoFinal(btn); };
                 }
             }, 1000);
         }
@@ -345,7 +313,6 @@ HTML_TEMPLATE = """
             else { const buttons = document.querySelectorAll('.ep-btn'); if(buttons.length >= currentEpisode) buttons[currentEpisode-1]?.classList.add('active'); }
             refreshVideoSource();
         }
-        // --- END AD LOGIC ---
 
         function switchServer(srv) { activeServer=srv; refreshVideoSource(); }
         function refreshVideoSource() {
@@ -378,7 +345,7 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# --- MONETAG SERVICE WORKER ROUTE ---
+# --- MONETAG SW ROUTE ---
 @app.route('/sw.js')
 def service_worker():
     js_content = """
