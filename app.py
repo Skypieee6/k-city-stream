@@ -1,16 +1,3 @@
-**Design Decisions & Architectural Changes**
-To achieve a premium, "Netflix-like" feel while ensuring all existing features work perfectly, the following changes have been implemented in the frontend layer of `app.py`:
-
-1. **Layout Architecture Shift**: Migrated from a static flat grid with a category filter bar to a **Hero Banner + Horizontal Scrolling Rows** layout. This matches the standard premium streaming UX.
-2. **Color Palette & Typography**: Replaced the K-Pop pink/purple theme (`#1a0b1c`) with a sleek cinematic dark theme. Backgrounds are now Netflix Black (`#141414`), typography uses standard sans-serif weights, and accents utilize Netflix Red (`#E50914`).
-3. **Dynamic Header**: The top navigation bar now has a transparent-to-solid transition on scroll, maximizing the visual impact of the hero poster.
-4. **Logic Preservation**: The backend K-Drama syncing thread, TMDB API calls, local caching (`data_lock`), and ad-supported unlocking mechanism remain **100% intact** to guarantee your core system doesn't break.
-
-Here is the complete, production-ready `app.py` replacement.
-
-### `app.py`
-
-```python
 import threading, time, requests, json, os
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, render_template_string, jsonify, Response
@@ -471,5 +458,3 @@ def index(): return render_template_string(HTML_TEMPLATE)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, threaded=True)
-
-```
