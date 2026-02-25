@@ -429,32 +429,3 @@ HTML_TEMPLATE = """
     </script>
 </body>
 </html>
-"""
-
-# --- MONETAG SW ROUTE ---
-@app.route('/sw.js')
-def service_worker():
-    js_content = """
-self.options = {
-    "domain": "5gvci.com",
-    "zoneId": 204745
-}
-self.lary = ""
-importScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw')
-"""
-    return Response(js_content, mimetype='application/javascript')
-
-@app.route('/api/data')
-def get_data():
-    with data_lock:
-        if os.path.exists(CACHE_FILE):
-            try:
-                with open(CACHE_FILE, 'r') as f: return jsonify(json.load(f))
-            except: pass
-    return jsonify([])
-
-@app.route('/')
-def index(): return render_template_string(HTML_TEMPLATE)
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, threaded=True)
